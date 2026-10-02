@@ -18,6 +18,8 @@ export type ModuleMeta = {
   actions: string[]
   actionTargets: Record<string, string>
   metrics: string[]
+  // 环节型模块：状态必须按 statuses 顺序逐环推进，不许回退、不许跳级。
+  orderedFlow?: boolean
 }
 
 export type PageResult = {

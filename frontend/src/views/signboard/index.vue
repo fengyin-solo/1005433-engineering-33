@@ -42,8 +42,14 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+        <tr v-for="row in rows" :key="String(row.id)" :class="{ 'row-check': String(row['标识类别']) === '待核对工序' }">
+          <td v-for="column in columns" :key="column">
+            <template v-if="column === '标识类别' && String(row[column]) === '待核对工序'">
+              {{ row[column] }}
+              <span class="tag-check">削坡导入驱动</span>
+            </template>
+            <template v-else>{{ row[column] ?? '—' }}</template>
+          </td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
             <button
@@ -135,3 +141,18 @@ function reload() {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+.row-check {
+  background: #eef6ff;
+}
+.tag-check {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #1f6feb;
+  color: #fff;
+  font-size: 12px;
+}
+</style>
