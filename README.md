@@ -38,6 +38,17 @@ cd frontend
 npm run build
 ```
 
+本地数据复位（播种与复位收成一条命令）：
+
+```bash
+make reset          # 或在 frontend 目录下 npm run reset
+```
+
+脚本会先检查依赖（`node_modules` 等）缺不缺，缺了会提示先 `npm install`；然后改写
+`frontend/src/data/seed-version.ts` 里的播种版本号。下次打开或刷新页面时，浏览器里上一轮
+残留的工序编号、削坡方量、坡比要求、开挖高程都会被清掉，削坡工序回到示例数据，治理工程等
+模块的清单条数也跟着回到初始。路径全部相对脚本位置推导，克隆到任何目录都能跑。
+
 ## 业务模块
 
 | 模块 | 目录 | 业务对象 | 主要字段 |
@@ -67,5 +78,13 @@ npm run build
   `frontend/src/api/local-service.ts`。
 - 字段、状态、动作与流转目标集中在 `frontend/src/data/modules.ts`；示例数据在
   `frontend/src/data/seed.ts`。
-- 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
-- 想回到初始数据：清掉浏览器里 `geohazard-patrol:entries` 这一项，或调用 `resetModule(模块)`。
+- 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断；环节按顺序流转
+  （如削坡工序：待开工→施工中→待验收→已验收），不许回退也不许跳环节。
+- 削坡工序支持 CSV 导入（页面上的「导入削坡工序」，表头与导出清单一致）：业务编号重复的
+  行按第一次已收处理，不覆盖不报错；坡比要求超出 0.5~3 范围的行按无效处理；坡比要求与
+  开挖高程对不上时以坡比要求为准收下并标异常待核对。导入收尾后，每新增一条工序，警示标识
+  台账会同步多出一条待核对记录。
+- 削坡方量等统计指标统一走 `local-service.ts` 的取数口（`cuttingStats`），页面、看板、
+  导出不各算各的。
+- 想回到初始数据：跑 `make reset`（见上文）；也可以清掉浏览器里 `geohazard-patrol:entries`
+  这一项，或调用 `resetModule(模块)` 只复位单个模块。

@@ -7,7 +7,15 @@
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记削坡工序</button>
+        <button class="btn" type="button" @click="openImport">导入削坡工序</button>
         <button class="btn" type="button" @click="exportRows">导出削坡减载清单</button>
+        <input
+          ref="fileInput"
+          class="hidden-input"
+          type="file"
+          accept=".csv,text/csv"
+          @change="handleImport"
+        />
       </div>
     </header>
 
@@ -65,6 +73,7 @@
 
     <footer class="page-foot">
       <span>共 {{ total }} 条削坡减载记录</span>
+      <span v-if="noticeMessage" class="notice-text">{{ noticeMessage }}</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
   </section>
@@ -74,7 +83,9 @@
 import { computed, onMounted, ref } from 'vue'
 
 import {
+  cuttingStats,
   downloadEntries,
+  importEntries,
   listEntries,
   moduleMeta,
   runAction as applyAction,
@@ -85,13 +96,16 @@ const meta = moduleMeta('cutting')
 const columns = ["工序编号", "所属工程", "削坡方量", "坡比要求", "开挖高程", "验收日期", "验收人", "工序状态"]
 const actions = ["确认开工", "提交验收", "确认通过"]
 const statuses = ["待开工", "施工中", "待验收", "已验收"]
-const stats = [{"label": "施工中工序", "value": 0}, {"label": "待验收工序", "value": 0}, {"label": "累计削坡方量", "value": 0}]
+// 统计卡统一走 local-service 的取数口，和看板、导出读同一份数据
+const stats = ref(cuttingStats())
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
+const noticeMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const fileInput = ref<HTMLInputElement | null>(null)
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
@@ -112,8 +126,33 @@ function openCreate() {
   errorMessage.value = '削坡工序登记入口尚未接入审批流'
 }
 
+function openImport() {
+  fileInput.value?.click()
+}
+
+function handleImport(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) {
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const result = importEntries(meta.key, String(reader.result ?? ''))
+    reload()
+    errorMessage.value = result.ok ? '' : result.message
+    noticeMessage.value = result.ok ? result.message : ''
+  }
+  reader.onerror = () => {
+    errorMessage.value = '导入文件读取失败'
+  }
+  reader.readAsText(file, 'utf-8')
+}
+
 function runAction(action: string, row: EntryRow) {
   errorMessage.value = ''
+  noticeMessage.value = ''
   const result = applyAction(meta.key, Number(row.id), action)
   if (!result.ok) {
     errorMessage.value = result.message
@@ -124,10 +163,12 @@ function runAction(action: string, row: EntryRow) {
 
 function reload() {
   errorMessage.value = ''
+  noticeMessage.value = ''
   try {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    stats.value = cuttingStats()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '削坡减载列表读取失败'
   }

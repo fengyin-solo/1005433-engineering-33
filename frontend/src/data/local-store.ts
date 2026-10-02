@@ -1,8 +1,11 @@
 import { SEED_ROWS } from './seed'
+import { SEED_VERSION } from './seed-version'
 import type { EntryRow } from './types'
 
 // 本地持久化：数据放在 localStorage 里，刷新、关掉再打开都还在。
 const STORAGE_KEY = 'geohazard-patrol:entries'
+// 播种版本：复位命令会改写 seed-version.ts，浏览器里存的版本对不上就整库重新播种。
+const VERSION_KEY = 'geohazard-patrol:seed-version'
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -11,6 +14,12 @@ function clone<T>(value: T): T {
 function readStorage(): Record<string, EntryRow[]> {
   const fallback = clone(SEED_ROWS)
   if (typeof window === 'undefined' || !window.localStorage) {
+    return fallback
+  }
+  // 版本不一致（首次打开，或刚跑过复位命令）：丢掉上一轮残留，回到示例数据
+  if (window.localStorage.getItem(VERSION_KEY) !== SEED_VERSION) {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback))
+    window.localStorage.setItem(VERSION_KEY, SEED_VERSION)
     return fallback
   }
   const raw = window.localStorage.getItem(STORAGE_KEY)
